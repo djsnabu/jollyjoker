@@ -1,12 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import fs from "fs";
-import path from "path";
-
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "jollyjoker2026";
+import { getCloudflareContext } from "@opennextjs/cloudflare";
 
 export async function POST(req: NextRequest) {
+  const { env } = await getCloudflareContext({ async: true });
   const auth = req.headers.get("authorization");
-  if (!auth || auth.replace("Bearer ", "") !== ADMIN_PASSWORD) {
+  if (!auth || auth.replace("Bearer ", "") !== env.ADMIN_PASSWORD) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -16,14 +14,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "No file" }, { status: 400 });
   }
 
-  const bytes = await file.arrayBuffer();
-  const buffer = Buffer.from(bytes);
-
   const ext = file.name.split(".").pop() || "jpg";
   const filename = `${Date.now()}.${ext}`;
-  const filePath = path.join(process.cwd(), "public", "events", filename);
 
-  fs.writeFileSync(filePath, buffer);
+  await env.IMAGES.put(filename, await file.arrayBuffer(), {
+    httpMetadata: { contentType: file.type },
+  });
 
-  return NextResponse.json({ url: `/events/${filename}` });
+  return NextResponse.json({ url: `/api/images/${filename}` });
 }

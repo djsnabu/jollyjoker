@@ -1,0 +1,20 @@
+name = "jollyjoker"
+main = ".open-next/worker.js"
+compatibility_date = "2024-12-30"
+compatibility_flags = ["nodejs_compat"]
+
+[assets]
+directory = ".open-next/assets"
+binding = "ASSETS"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "jollyjoker-db"
+database_id = "09de928a-fee9-4d28-9809-9a20df2dfe57"
+
+[[r2_buckets]]
+binding = "IMAGES"
+bucket_name = "jollyjoker-images"
+
+[vars]
+ADMIN_PASSWORD = "jollyjoker2026"
