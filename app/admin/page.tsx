@@ -23,16 +23,35 @@ export default function AdminPage() {
   const [message, setMessage] = useState("");
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const passwordRef = useRef("");
 
-  const headers = {
-    "Content-Type": "application/json",
-    Authorization: `Bearer ${password}`,
-  };
+  function getHeaders() {
+    return {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${passwordRef.current}`,
+    };
+  }
 
   async function loadEvents() {
-    const res = await fetch("/api/events");
-    const data = await res.json();
-    setEvents(data);
+    try {
+      const res = await fetch("/api/events?t=" + Date.now(), {
+        cache: "no-store",
+        headers: { Accept: "application/json" },
+      });
+      if (!res.ok) {
+        setMessage("Keikkojen lataus: HTTP " + res.status);
+        return;
+      }
+      const text = await res.text();
+      if (!text) {
+        setMessage("Keikkojen lataus: tyhjä vastaus");
+        return;
+      }
+      const data = JSON.parse(text);
+      setEvents(data);
+    } catch (err) {
+      setMessage("Keikkojen lataus epäonnistui: " + String(err));
+    }
   }
 
   async function handleLogin(e: FormEvent) {
@@ -44,6 +63,7 @@ export default function AdminPage() {
         body: JSON.stringify({ password }),
       });
       if (res.ok) {
+        passwordRef.current = password;
         setAuthed(true);
       } else {
         setMessage("Väärä salasana!");
@@ -64,7 +84,7 @@ export default function AdminPage() {
     try {
       const res = await fetch("/api/upload", {
         method: "POST",
-        headers: { Authorization: `Bearer ${password}` },
+        headers: { Authorization: `Bearer ${passwordRef.current}` },
         body: formData,
       });
       if (res.ok) {
@@ -83,21 +103,18 @@ export default function AdminPage() {
 
   async function handleSave(e: FormEvent) {
     e.preventDefault();
+    const h = getHeaders();
+    const payload = editing ? { ...form, id: editing.id } : form;
+    const method = editing ? "PUT" : "POST";
     try {
-      const res = editing
-        ? await fetch("/api/events", {
-            method: "PUT",
-            headers,
-            body: JSON.stringify({ ...form, id: editing.id }),
-          })
-        : await fetch("/api/events", {
-            method: "POST",
-            headers,
-            body: JSON.stringify(form),
-          });
+      const res = await fetch("/api/events", {
+        method,
+        headers: h,
+        body: JSON.stringify(payload),
+      });
+      const text = await res.text();
       if (!res.ok) {
-        const err = await res.text();
-        setMessage("Virhe: " + err);
+        setMessage(`Virhe ${res.status}: ${text}`);
         setTimeout(() => setMessage(""), 5000);
         return;
       }
@@ -105,7 +122,7 @@ export default function AdminPage() {
       setForm(emptyEvent);
       setEditing(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
-      loadEvents();
+      await loadEvents();
     } catch (err) {
       setMessage("Yhteysvirhe: " + String(err));
     }
@@ -114,7 +131,7 @@ export default function AdminPage() {
 
   async function handleDelete(id: string) {
     if (!confirm("Poistetaanko keikka?")) return;
-    await fetch(`/api/events?id=${id}`, { method: "DELETE", headers });
+    await fetch(`/api/events?id=${id}`, { method: "DELETE", headers: getHeaders() });
     setMessage("Keikka poistettu!");
     loadEvents();
     setTimeout(() => setMessage(""), 3000);
@@ -136,7 +153,7 @@ export default function AdminPage() {
   if (!authed) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background px-4 pt-20">
-        <form onSubmit={handleLogin} className="bg-black/50 border border-violet/30 rounded-lg p-8 w-full max-w-sm">
+        <form onSubmit={handleLogin} autoComplete="off" className="bg-black/50 border border-violet/30 rounded-lg p-8 w-full max-w-sm">
           <h1 className="text-2xl font-extrabold mb-6 text-center">
             <span className="text-primary">Admin</span>
           </h1>
@@ -173,7 +190,7 @@ export default function AdminPage() {
       )}
 
       {/* Add/Edit form */}
-      <form onSubmit={handleSave} className="bg-black/50 border border-violet/20 rounded-lg p-6 mb-8">
+      <form onSubmit={handleSave} autoComplete="off" className="bg-black/50 border border-violet/20 rounded-lg p-6 mb-8">
         <h2 className="text-lg font-bold mb-4 text-violet">
           {editing ? "Muokkaa keikkaa" : "Lisää uusi keikka"}
         </h2>
