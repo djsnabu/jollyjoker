@@ -83,25 +83,32 @@ export default function AdminPage() {
 
   async function handleSave(e: FormEvent) {
     e.preventDefault();
-    if (editing) {
-      await fetch("/api/events", {
-        method: "PUT",
-        headers,
-        body: JSON.stringify({ ...form, id: editing.id }),
-      });
-      setMessage("Keikka päivitetty!");
-    } else {
-      await fetch("/api/events", {
-        method: "POST",
-        headers,
-        body: JSON.stringify(form),
-      });
-      setMessage("Keikka lisätty!");
+    try {
+      const res = editing
+        ? await fetch("/api/events", {
+            method: "PUT",
+            headers,
+            body: JSON.stringify({ ...form, id: editing.id }),
+          })
+        : await fetch("/api/events", {
+            method: "POST",
+            headers,
+            body: JSON.stringify(form),
+          });
+      if (!res.ok) {
+        const err = await res.text();
+        setMessage("Virhe: " + err);
+        setTimeout(() => setMessage(""), 5000);
+        return;
+      }
+      setMessage(editing ? "Keikka päivitetty!" : "Keikka lisätty!");
+      setForm(emptyEvent);
+      setEditing(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      loadEvents();
+    } catch (err) {
+      setMessage("Yhteysvirhe: " + String(err));
     }
-    setForm(emptyEvent);
-    setEditing(null);
-    if (fileInputRef.current) fileInputRef.current.value = "";
-    loadEvents();
     setTimeout(() => setMessage(""), 3000);
   }
 
